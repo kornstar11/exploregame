@@ -37,12 +37,12 @@ pub struct Game {
     bonus: Bonus,
     score: i32,
     cake_eaten: u32,
-    camera_should_focus: Vec3,
-    camera_is_focus: Vec3,
+    camera_focus: Vec3,
+    camera_pos: Vec3,
 }
 
-pub const BOARD_SIZE_I: usize = 10;
-pub const BOARD_SIZE_J: usize = 20;
+pub const BOARD_SIZE_I: usize = 100;
+pub const BOARD_SIZE_J: usize = 200;
 
 pub const RESET_FOCUS: [f32; 3] = [
     BOARD_SIZE_I as f32 / 2.0,

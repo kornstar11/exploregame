@@ -1,8 +1,6 @@
 
 use crate::*;
-use bevy::{
-    core::FixedTimestep, ecs::schedule::SystemSet, prelude::*, render::camera::CameraPlugin,
-};
+use bevy::{core::FixedTimestep, ecs::schedule::SystemSet, input::mouse::{MouseScrollUnit, MouseWheel}, prelude::*, render::camera::CameraPlugin};
 
 
 
@@ -14,11 +12,11 @@ pub fn setup(mut commands: Commands, asset_server: Res<AssetServer>, mut game: R
     game.player.j = BOARD_SIZE_J / 2;
 
     commands.spawn_bundle(PointLightBundle {
-        transform: Transform::from_xyz(4.0, 10.0, 4.0),
+        transform: Transform::from_xyz(4.0, 25.0, 25.0),
         point_light: PointLight {
-            intensity: 3000.0,
+            intensity: 30000.0,
             shadows_enabled: true,
-            range: 30.0,
+            range: 300.0,
             ..Default::default()
         },
         ..Default::default()
@@ -163,15 +161,11 @@ pub fn move_player(
 }
 
 pub fn setup_cameras(mut commands: Commands, mut game: ResMut<Game>) {
-    game.camera_should_focus = Vec3::from(RESET_FOCUS);
-    game.camera_is_focus = game.camera_should_focus;
+    game.camera_focus = Vec3::from(RESET_FOCUS);
+    game.camera_pos = Vec3::new(-10.0, 10.0, 10.0); //Vec3::new(-(BOARD_SIZE_I as f32 / 2.0), 2.0 * BOARD_SIZE_J as f32 / 3.0, BOARD_SIZE_J as f32 / 2.0 - 0.5);
     commands.spawn_bundle(PerspectiveCameraBundle {
-        transform: Transform::from_xyz(
-            -(BOARD_SIZE_I as f32 / 2.0),
-            2.0 * BOARD_SIZE_J as f32 / 3.0,
-            BOARD_SIZE_J as f32 / 2.0 - 0.5,
-        )
-        .looking_at(game.camera_is_focus, Vec3::Y),
+        transform: Transform::from_translation(game.camera_pos)
+        .looking_at(game.camera_focus, Vec3::Y),
         ..Default::default()
     });
     commands.spawn_bundle(UiCameraBundle::default());
@@ -179,63 +173,41 @@ pub fn setup_cameras(mut commands: Commands, mut game: ResMut<Game>) {
 
 // change the focus of the camera
 pub fn focus_camera(
-    time: Res<Time>,
     mut game: ResMut<Game>,
     mut transforms: QuerySet<(
         QueryState<(&mut Transform, &Camera)>,
         QueryState<&Transform>,
     )>,
+    mut scroll_evt: EventReader<MouseWheel>,
 ) {
+    let mut new_focus = game.camera_focus;
+    let mut new_camera_pos = game.camera_pos;
+
+    for ev in scroll_evt.iter() {
+        match ev.unit {
+            MouseScrollUnit::Line => {
+                println!("Scroll (line units): vertical: {}, horizontal: {}", ev.y, ev.x);
+                new_camera_pos.y += ev.y;
+                new_camera_pos.z += ev.y;
+                new_camera_pos.x -= ev.y;
+            }
+            MouseScrollUnit::Pixel => {
+            }
+        }
+    }
     if let Some(player_entity) = game.player.entity {
         if let Ok(player_transform) = transforms.q1().get(player_entity) {
-            game.camera_should_focus = player_transform.translation;
+            new_focus = player_transform.translation;
         }
     }
-    let camera_pos = game.camera_should_focus + Vec3::new(0.0, 10.0, 10.0);
-    game.camera_is_focus = game.camera_should_focus;
+    let camera_pos = new_focus + game.camera_pos;
+    game.camera_focus = new_focus;
+    game.camera_pos = new_camera_pos;
     for (mut transform, camera) in transforms.q0().iter_mut() {
         if camera.name == Some(CameraPlugin::CAMERA_3D.to_string()) {
-            *transform = Transform::from_translation(camera_pos).looking_at(game.camera_is_focus, Vec3::Y);
+            *transform = Transform::from_translation(camera_pos).looking_at(game.camera_focus, Vec3::Y);
         }
     }
-    /*
-    const SPEED: f32 = 2.0;
-    // if there is both a player and a bonus, target the mid-point of them
-    if let (Some(player_entity), Some(bonus_entity)) = (game.player.entity, game.bonus.entity) {
-        let transform_query = transforms.q1();
-        if let (Ok(player_transform), Ok(bonus_transform)) = (
-            transform_query.get(player_entity),
-            transform_query.get(bonus_entity),
-        ) {
-            game.camera_should_focus = player_transform
-                .translation
-                .lerp(bonus_transform.translation, 0.5);
-        }
-    // otherwise, if there is only a player, target the player
-    } else if let Some(player_entity) = game.player.entity {
-        if let Ok(player_transform) = transforms.q1().get(player_entity) {
-            game.camera_should_focus = player_transform.translation;
-        }
-    // otherwise, target the middle
-    } else {
-        game.camera_should_focus = Vec3::from(RESET_FOCUS);
-    }
-    // calculate the camera motion based on the difference between where the camera is looking
-    // and where it should be looking; the greater the distance, the faster the motion;
-    // smooth out the camera movement using the frame time
-    let mut camera_motion = game.camera_should_focus - game.camera_is_focus;
-    if camera_motion.length() > 0.2 {
-        camera_motion *= SPEED * time.delta_seconds();
-        // set the new camera's actual focus
-        game.camera_is_focus += camera_motion;
-    }
-    // look at that new camera's actual focus
-    for (mut transform, camera) in transforms.q0().iter_mut() {
-        if camera.name == Some(CameraPlugin::CAMERA_3D.to_string()) {
-            *transform = transform.looking_at(game.camera_is_focus, Vec3::Y);
-        }
-    }
-    */
 }
 
 // despawn the bonus if there is one, then spawn a new one at a random location
