@@ -1,6 +1,7 @@
+use explore::systems::*;
 use explore::*;
 use bevy::{
-    core::FixedTimestep, ecs::schedule::SystemSet, prelude::*, render::camera::CameraPlugin,
+    core::FixedTimestep, ecs::schedule::SystemSet, prelude::*,
 };
 fn main() {
     App::new()
@@ -22,11 +23,11 @@ fn main() {
         .add_system_set(SystemSet::on_enter(GameState::GameOver).with_system(display_score))
         .add_system_set(SystemSet::on_update(GameState::GameOver).with_system(gameover_keyboard))
         .add_system_set(SystemSet::on_exit(GameState::GameOver).with_system(teardown))
-        .add_system_set(
+        /*.add_system_set(
             SystemSet::new()
                 .with_run_criteria(FixedTimestep::step(5.0))
                 .with_system(spawn_bonus),
-        )
+        )*/
         .add_system(bevy::input::system::exit_on_esc_system)
         .run();
 }
